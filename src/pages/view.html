@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src="//code.jquery.com/jquery-1.10.1.min.js"></script>
+{{ app_init_js }}
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Fill-In-The-Blanks</title>
+<style type="text/css">
+    .blank-input {
+        border: none;
+        border-bottom: 1px solid #444;
+        outline: none;
+        color: #444;
+        text-align: center;
+    }
+
+    .blank-input.incorrect {
+        background-color: #eaa;
+    }
+
+    #fillInBlanks {
+        padding: 12px;
+        float: left;
+        width: 80%;
+        font-size: 16px;
+    }
+
+    #wordlist {
+        margin-top: 4px;
+        float: left;
+    }
+
+    #wordlist h3 {
+        text-decoration: underline;
+    }
+
+    .wordlist {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-bottom: 12px;
+        border: 1px solid #bbb;
+        -webkit-border-radius: 4px;
+        -moz-border-radius: 4px;
+        border-radius: 4px;
+    }
+
+    .wordlist li {
+        font-size: 18px;
+        margin-left: 12px;
+        font-weight: bold;
+    }
+
+    .wordlist .used {
+        text-decoration: line-through;
+        font-weight: normal;
+        color: #aaa;
+    }
+
+    #congratulations {
+        background-color: #5b5;
+        color: white;
+        font-size: 32px;
+        text-align: center;
+    }
+</style>
+<link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/bootstrap/3.0.2/css/bootstrap.min.css">
+
+<script src="//netdna.bootstrapcdn.com/bootstrap/3.0.2/js/bootstrap.min.js"></script>
+</head>
+
+<body> 
+    <div id="congratulations" class="hide">Completed! Well Done</div>
+    <div id="fillInBlanks">
+    </div>
+    <div id="wordlist"></div>
+    <div style="clear:both"></div>
+
+    <div class="text-center">
+        <button id="save" type="button" data-loading-text="Saving..." class="btn btn-primary">Save Answers</button>
+        <button id="check" type="button" data-checking-text="Checking..." class="btn btn-success">Check Answers</button>
+    </div>
+    <script type="text/javascript">
+        var inputMatch = /(__+)\s*\((.*?)\)/g;
+        var encryptionKey = '8ah4tads9a7gaancxmb4a9tadaihcapwethsf9a7z3';
+
+        function dc(text) {
+            var keyLength = encryptionKey.length;
+            var outText = '';
+            var symbols = text.split(/a/g);
+            for (var i = 0; i !== symbols.length; ++i) {
+                outText += String.fromCharCode(symbols[i] ^ encryptionKey[i % keyLength].charCodeAt(0));
+            }
+
+            return outText;
+        };
+
+        function shuffle(o) {
+            for (var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+            return o;
+        };
+        
+        function generateWordList(textInput) {
+            var words = [];
+            var match = inputMatch.exec(textInput);
+            while (match != null) {
+                words.push(dc(match[2]));
+                match = inputMatch.exec(textInput);
+            }
+            return shuffle(words);
+        };
+
+        function generateWordsHTML(textInput) {
+            var words = generateWordList(textInput);
+            var $container = $('<ul class="wordlist"></ul>');
+
+            $container.append($('<h3>Word List</h3>'));
+            $.each(words, function(i, word) {
+                $container.append(
+                    $('<li>').text(word).attr('data-word', word).addClass('word')
+                );
+            });
+
+            return $container;
+        }
+
+        function generatePassageHTML(textInput) {
+            return textInput.replace(inputMatch, function(match, line, word) {
+                var len = word.split(/a/g).length;
+                return '<input type="text" class="blank-input" data-correct="' + word + '" maxlength="' + len + '" style="width: ' + len + 'em;">';
+            }).replace(/\n/g, '<br>');
+        };
+
+        function getAnswers() {
+            var answers = [];
+            $('#fillInBlanks input.blank-input').each(function(i, inputField) {
+                answers.push($(inputField).val());
+            });
+            return answers;
+        };
+
+        function loadAnswers(answers) {
+            $('#fillInBlanks input.blank-input').each(function(i, inputField) {
+                var answer = answers[i] || '';
+                $(inputField).val(answer).trigger('change');
+            });
+        };
+
+        function setCompleted() {
+            $('#congratulations').removeClass('hide').hide().fadeIn();
+            $('#check').hide();
+
+            window.app.resize();
+        };
+
+        $(function() {
+            $('#fillInBlanks').on('keypress blur change', '.blank-input', function() {
+                $(this).removeClass('incorrect');
+                var value = $(this).val();
+                if ($(this).data('used')) {
+                    $(this).data('used').removeClass('used');
+                }
+                $(this).data('used', $('.word[data-word="' + value + '"]').addClass('used'));
+            });
+            
+            // Retrieve the configuration for this activity
+            $.getJSON("/run/getConfig", function(response) {
+                var configText;
+                var configuration = response.configuration;
+
+                configText = configuration.configText || '';
+
+                // generate the blanks and the wordlist
+                $('#fillInBlanks').html(generatePassageHTML(configText));
+                $('#wordlist').html(generateWordsHTML(configText));
+
+                // resize the app to fit it all in
+                window.app.resize();
+
+                // load up any saved answers
+                $.getJSON("/run/getSubmission", function(submissionResponse) {
+                    if (submissionResponse.success) {
+                        // if no answers have been saved, patch in an empty list
+                        if (!submissionResponse.metadata) {
+                            submissionResponse.metadata = {
+                                answers: []
+                            };
+                        }
+
+                        // load up the answers
+                        loadAnswers(submissionResponse.metadata.answers);
+
+                        // mark as completed, (if it's completed)
+                        if (submissionResponse.metadata.completed) {
+                            setCompleted();
+                        }
+                    } else {
+                        alert("Unable to load submission at this time");
+                    }
+                });
+            });
+            
+            $('#save').on('click', function() {
+                // get the current answers
+                var answers = getAnswers();
+
+                var $btn = $(this);
+                $btn.button('loading');
+
+                // send the answers to saveSubmission
+                $.post("/run/saveSubmission", {
+                    'metadata': JSON.stringify({
+                        'answers': answers
+                    })
+                }, function(response) {
+                    if (response.success) {
+                        window.app.sendMessage('notify', {'title': 'Saved!', 'type': 'success'});
+
+                        $btn.button('reset');
+                    } else {
+                        alert('Unable to save at this time')
+                    }
+                }, 'json');
+            });
+
+            $('#check').on('click', function() {
+                var $btn = $(this);
+                var incorrect = false;
+
+                $btn.button('loading');
+
+                // see if all answers are correct
+                $('.blank-input').each(function(i, inpt) {
+                    $blank = $(inpt);
+                    var val = $blank.val();
+
+                    if (val.toLowerCase() !== dc($blank.attr('data-correct')).toLowerCase()) {
+                        incorrect = true;
+                        $blank.addClass('incorrect');
+                    }
+                });
+
+                // common save data (this click saves the current answers too)
+                var answers = getAnswers();
+                var saveData = {
+                    'metadata': {
+                        'answers': answers
+                    }
+                };
+
+                var callback;
+
+                if (!incorrect) {
+                    // correct, submit and set as completed
+                    saveData.submit = true;
+                    saveData.grading = JSON.stringify({
+                        completed: true
+                    });
+
+                    // store that it's completed in the submission data too
+                    // for easy access
+                    saveData.metadata.completed = true;
+
+                    // this is what we do once that's saved
+                    callback = function(response) {
+                        if (response.success) {
+                            setCompleted();
+                            window.app.sendMessage('updateProgress', {});
+                        } else {
+                            alert('Unable to save at this time')
+                        }
+
+                        $btn.button('reset');
+                    };
+                } else {
+                    // after saving, when incorrect... don't do anything
+                    // we've already highlighted the incorrect boxes
+                    callback = function(response) {
+                        $btn.button('reset');
+                    };
+                }
+
+                // saveData is a bunch of POST params, so JSON stringify the deeper objects
+                saveData.metadata = JSON.stringify(saveData.metadata);
+
+                $.post("/run/saveSubmission", saveData, callback, 'json');
+
+                window.app.resize();
+            });
+        });
+    </script>
+</body>
+</html>
