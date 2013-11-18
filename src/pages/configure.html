@@ -25,11 +25,12 @@
     #fillInBlanks {
         padding: 12px;
         float: left;
-        width: 80%;
+        width: 75%;
         font-size: 16px;
     }
 
     #wordlist {
+        width: 25%;
         margin-top: 4px;
         float: left;
     }
@@ -135,6 +136,12 @@ Knock knock? Who's _____(there)? What's the time Mr ____(wolf)?
             });
         };
 
+        function decodeConfigText(textInput) {
+            return textInput.replace(inputMatch, function(match, line, word) {
+                return line + '(' + dc(word) + ')';
+            });
+        };
+
         function generateWordsHTML(textInput) {
             var words = generateWordList(textInput);
             var $container = $('<ul class="wordlist"></ul>');
@@ -142,7 +149,7 @@ Knock knock? Who's _____(there)? What's the time Mr ____(wolf)?
             $container.append($('<h3>Word List</h3>'));
             $.each(words, function(i, word) {
                 $container.append(
-                    $('<li>').text(word).attr('data-word', word).addClass('word')
+                    $('<li>').text(word).attr('data-word', word.toLowerCase()).addClass('word')
                 );
             });
 
@@ -157,6 +164,26 @@ Knock knock? Who's _____(there)? What's the time Mr ____(wolf)?
         };
 
         $(function() {
+            $.getJSON("/run/getConfig", function(response) {
+                var configText;
+                var configuration = response.configuration;
+
+                configText = configuration.configText || '';
+
+                if (configText === '') {
+                    return;
+                }
+
+                $('#defineFillInBlanks').val(decodeConfigText(configText));
+                
+                // generate the blanks and the wordlist
+                $('#fillInBlanks').html(generatePassageHTML(configText));
+                $('#wordlist').html(generateWordsHTML(configText));
+
+                // resize the app to fit it all in
+                window.app.resize();
+            });
+
             $('#savePuzzle').on('click', function() {
                 $btn = $(this);
                 var configPlainText = $('#defineFillInBlanks').val();
@@ -211,7 +238,7 @@ Knock knock? Who's _____(there)? What's the time Mr ____(wolf)?
                 if ($(this).data('used')) {
                     $(this).data('used').removeClass('used');
                 }
-                $(this).data('used', $('.word[data-word="' + value + '"]').addClass('used'));
+                $(this).data('used', $('.word[data-word="' + value.toLowerCase() + '"]').addClass('used'));
             });
 
             window.app.resize();

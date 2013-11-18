@@ -22,13 +22,14 @@
     #fillInBlanks {
         padding: 12px;
         float: left;
-        width: 80%;
+        width: 75%;
         font-size: 16px;
     }
 
     #wordlist {
         margin-top: 4px;
         float: left;
+        width: 25%;
     }
 
     #wordlist h3 {
@@ -120,7 +121,7 @@
             $container.append($('<h3>Word List</h3>'));
             $.each(words, function(i, word) {
                 $container.append(
-                    $('<li>').text(word).attr('data-word', word).addClass('word')
+                    $('<li>').text(word).attr('data-word', word.toLowerCase()).addClass('word')
                 );
             });
 
@@ -163,7 +164,7 @@
                 if ($(this).data('used')) {
                     $(this).data('used').removeClass('used');
                 }
-                $(this).data('used', $('.word[data-word="' + value + '"]').addClass('used'));
+                $(this).data('used', $('.word[data-word="' + value.toLowerCase() + '"]').addClass('used'));
             });
             
             // Retrieve the configuration for this activity
