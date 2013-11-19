@@ -22,6 +22,10 @@
         background-color: #eaa;
     }
 
+    .legend.incorrect {
+        background-color: #eaa;
+    }
+
     #fillInBlanks {
         padding: 12px;
         float: left;
@@ -39,10 +43,7 @@
         text-decoration: underline;
     }
 
-    .wordlist {
-        list-style: none;
-        padding: 0;
-        margin: 0;
+    .wordlist-border {
         padding-left: 12px;
         padding-right: 12px;
         padding-bottom: 12px;
@@ -50,6 +51,14 @@
         -webkit-border-radius: 4px;
         -moz-border-radius: 4px;
         border-radius: 4px;
+        text-align: center;
+    }
+
+    .wordlist {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        text-align: left;
     }
 
     .wordlist li {
@@ -145,8 +154,6 @@ Knock knock? Who's _____(there)? What's the time Mr ____(wolf)?
         function generateWordsHTML(textInput) {
             var words = generateWordList(textInput);
             var $container = $('<ul class="wordlist"></ul>');
-
-            $container.append($('<h3>Word List</h3>'));
             $.each(words, function(i, word) {
                 $container.append(
                     $('<li>').text(word).attr('data-word', word.toLowerCase()).addClass('word')
@@ -156,10 +163,31 @@ Knock knock? Who's _____(there)? What's the time Mr ____(wolf)?
             return $container;
         }
 
+        function regenerateWords(configText) {
+            var $legend = $('<div>');
+            $('#wordlist')
+                .empty()
+                .append(
+                    $('<div>')
+                        .addClass('wordlist-border')
+                        .append($('<h3>Word List</h3>'))
+                        .append(generateWordsHTML(configText))
+                )
+                .append($legend);
+            window.app.resize();
+        }
+
         function generatePassageHTML(textInput) {
+            var words = generateWordList(textInput);
+            var maxlength = 0;
+            $.each(words, function(i, word) {
+                if (word.length > maxlength) {
+                    maxlength = word.length;
+                }
+            });
+
             return textInput.replace(inputMatch, function(match, line, word) {
-                var len = word.split(/a/g).length;
-                return '<input type="text" class="blank-input" data-correct="' + word + '" maxlength="' + len + '" style="width: ' + len + 'em;">';
+                return '<input type="text" class="blank-input" data-correct="' + word + '" maxlength="' + maxlength + '" style="width: ' + (maxlength * 8) + 'px;">';
             }).replace(/\n/g, '<br>');
         };
 
@@ -178,7 +206,7 @@ Knock knock? Who's _____(there)? What's the time Mr ____(wolf)?
                 
                 // generate the blanks and the wordlist
                 $('#fillInBlanks').html(generatePassageHTML(configText));
-                $('#wordlist').html(generateWordsHTML(configText));
+                regenerateWords(configText);
 
                 // resize the app to fit it all in
                 window.app.resize();
@@ -208,7 +236,8 @@ Knock knock? Who's _____(there)? What's the time Mr ____(wolf)?
                 var configText = encodeConfigText(configPlainText);
 
                 $('#fillInBlanks').html(generatePassageHTML(configText));
-                $('#wordlist').html(generateWordsHTML(configText));
+                regenerateWords(configText);
+
                 window.app.resize();
             });
 

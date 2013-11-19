@@ -19,6 +19,29 @@
         background-color: #eaa;
     }
 
+
+    #legend-box {
+        margin: 4px;
+    }
+
+    .legend.incorrect {
+        background-color: #eaa;
+        width: 24px;
+        height: 24px;
+        border: 1px solid #888;
+        display:  inline-block;
+        margin-right: 12px;
+    }
+
+    .legend-text {
+        display: inline-block;
+        padding: 3px;
+        float: left;
+        vertical-align: middle;
+        font-weight: bold;
+        padding-right: 6px;
+    }
+
     #fillInBlanks {
         padding: 12px;
         float: left;
@@ -36,10 +59,7 @@
         text-decoration: underline;
     }
 
-    .wordlist {
-        list-style: none;
-        padding: 0;
-        margin: 0;
+    .wordlist-border {
         padding-left: 12px;
         padding-right: 12px;
         padding-bottom: 12px;
@@ -47,6 +67,14 @@
         -webkit-border-radius: 4px;
         -moz-border-radius: 4px;
         border-radius: 4px;
+        text-align: center;
+    }
+
+    .wordlist {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        text-align: left;
     }
 
     .wordlist li {
@@ -117,8 +145,6 @@
         function generateWordsHTML(textInput) {
             var words = generateWordList(textInput);
             var $container = $('<ul class="wordlist"></ul>');
-
-            $container.append($('<h3>Word List</h3>'));
             $.each(words, function(i, word) {
                 $container.append(
                     $('<li>').text(word).attr('data-word', word.toLowerCase()).addClass('word')
@@ -129,9 +155,16 @@
         }
 
         function generatePassageHTML(textInput) {
+            var words = generateWordList(textInput);
+            var maxlength = 0;
+            $.each(words, function(i, word) {
+                if (word.length > maxlength) {
+                    maxlength = word.length;
+                }
+            });
+
             return textInput.replace(inputMatch, function(match, line, word) {
-                var len = word.split(/a/g).length;
-                return '<input type="text" class="blank-input" data-correct="' + word + '" maxlength="' + len + '" style="width: ' + len + 'em;">';
+                return '<input type="text" class="blank-input" data-correct="' + word + '" maxlength="' + maxlength + '" style="width: ' + (maxlength * 8) + 'px;">';
             }).replace(/\n/g, '<br>');
         };
 
@@ -174,9 +207,20 @@
 
                 configText = configuration.configText || '';
 
+                var $legend = $('<div>').attr('id', 'legend-box');
+
                 // generate the blanks and the wordlist
                 $('#fillInBlanks').html(generatePassageHTML(configText));
-                $('#wordlist').html(generateWordsHTML(configText));
+                $('#wordlist')
+                    .empty()
+                    .append(
+                        $('<div>')
+                            .addClass('wordlist-border')
+                            .append($('<h3>Word List</h3>'))
+                            .append(generateWordsHTML(configText))
+                    )
+                    .append($legend);
+
 
                 // resize the app to fit it all in
                 window.app.resize();
@@ -281,6 +325,14 @@
                     // we've already highlighted the incorrect boxes
                     callback = function(response) {
                         $btn.button('reset');
+
+                        $('#legend-box')
+                            .empty()
+                            .append(
+                                $('<div class="legend incorrect"></div>')
+                            ).append(
+                                $('<span>').addClass('legend-text').text('Incorrect: ')
+                            );
                     };
                 }
 
